@@ -4,6 +4,10 @@
  * @author Morgan Chumbley
  *
  * @date   December 12th, 2020
+ * 
+ * @brief  For ANSI color usage in Windows use this reghack -- 
+ *         in HKCU\Console create a DWORD named VirtualTerminalLevel 
+ *         and set it to 0x1; then restart cmd.exe/powershell.exe
  */
 
 #ifndef LOGGER_HPP
