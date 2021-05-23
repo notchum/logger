@@ -16,30 +16,36 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <time.h>
+
 #include <fmt/color.h>
+#include <fmt/format.h>
+#include <fmt/core.h>
 
-enum {
-   LOG_DEBUG,
-   LOG_INFO,
-   LOG_WARN,
-   LOG_ERROR,
-   LOG_FATAL
-} ;
-
-namespace LOG
+typedef enum
 {
-   extern std::FILE *file  ;
-   extern bool is_file_set ;
+   DEBUG,
+   INFO,
+   WARN,
+   ERROR,
+   FATAL
+} LogLevel ;
 
-   void set_file_name ( const char *file_name ) ;
+extern std::FILE *log_file  ;
+extern bool is_file_set ;
 
-   void LOG_LOG( int log_level, const char* str ) ;
+void set_log_file( const char *file_name ) ;
+void vlog( int log_level, const char* file, int line, fmt::string_view str, fmt::format_args args ) ;
 
-   void DEBUG ( const char *str ) ;
-   void INFO  ( const char *str ) ;
-   void WARN  ( const char *str ) ;
-   void ERROR ( const char *str ) ;
-   void FATAL ( const char *str ) ;
+template <typename S, typename... Args>
+void log_log( int log_level, const char *file, int line, const S& format, Args&&... args )
+{
+   vlog(log_level, file, line, format, fmt::make_args_checked<Args...>(format, args...));
 }
+
+#define LOG_DEBUG(format, ...) log_log(DEBUG, __FILE__, __LINE__, FMT_STRING(format), ##__VA_ARGS__)
+#define LOG_INFO(format, ...)  log_log(INFO , __FILE__, __LINE__, FMT_STRING(format), ##__VA_ARGS__)
+#define LOG_WARN(format, ...)  log_log(WARN , __FILE__, __LINE__, FMT_STRING(format), ##__VA_ARGS__)
+#define LOG_ERROR(format, ...) log_log(ERROR, __FILE__, __LINE__, FMT_STRING(format), ##__VA_ARGS__)
+#define LOG_FATAL(format, ...) log_log(FATAL, __FILE__, __LINE__, FMT_STRING(format), ##__VA_ARGS__)
 
 #endif // LOGGER_HPP

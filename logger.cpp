@@ -8,9 +8,6 @@
 
 #include "logger.hpp"
 
-#include <fmt/color.h>
-#include <fmt/core.h>
-
 fmt::v7::color level_colors[] = {
    fmt::color::cyan,       // "\x1b[36m",
    fmt::color::lime_green, // "\x1b[32m",
@@ -27,62 +24,54 @@ static const char *level_names[] = {
    "FATAL"
 } ;
 
-namespace LOG
+std::FILE *log_file = NULL   ;
+bool is_file_set = false ;
+
+void set_log_file( const char *file_name )
 {
-
-   std::FILE *file = NULL   ;
-   bool is_file_set = false ;
-
-   void set_file_name ( const char *file_name )
+   if ( !is_file_set )
    {
-      if ( !is_file_set )
+      log_file = std::fopen(file_name, "w");
+      if ( !log_file )
       {
-         file = std::fopen(file_name, "w");
-         if (!file)
-         {
-            throw fmt::system_error(errno, "cannot open file '{}'", file_name);
-         }
-         is_file_set = true ; 
-         fmt::print(
-         "┌{0:─^{2}}┐\n"
-         "│{1: ^{2}}│\n"
-         "└{0:─^{2}}┘\n", "", file_name, 6 + strlen(file_name));
+         throw fmt::system_error(errno, "cannot open file '{}'", file_name);
       }
+      is_file_set = true ; 
+      fmt::print(
+      "┌{0:─^{2}}┐\n"
+      "│{1: ^{2}}│\n"
+      "└{0:─^{2}}┘\n", "", file_name, 6 + strlen(file_name));
    }
+} // end set_log_file()
 
-   void LOG_LOG( int log_level, const char* str )
+void vlog( int log_level, const char* file, int line, fmt::string_view str, fmt::format_args args )
+{
+   static bool otf = false ;
+   if ( !is_file_set && !otf )
    {
-      static bool otf = false ;
-      if ( !is_file_set && !otf )
-      {
-         fmt::print( "hey uh you never set a file to log broh" ) ;
-         otf = true ;
-         return ;
-      }
-      else if ( is_file_set )
-      {
-            // get time
-         time_t t = time(NULL) ;
-         struct tm *info = localtime(&t) ;
-         char buf[16] ;
-         buf[strftime(buf, sizeof(buf), "%H:%M:%S", info)] = '\0' ;
- 
-            // print time -> log level -> message
-         fmt::print( "{} ", buf ) ;
-         fmt::print( fmt::fg(level_colors[log_level]) | fmt::emphasis::bold, "{} ", level_names[log_level] ) ;
-         fmt::print( "{}\n", str ) ;
-
-            // write the same stuff to file
-         fmt::print( file, "{} ", buf ) ;
-         fmt::print( file, "{} ", level_names[log_level] ) ;
-         fmt::print( file, "{}\n", str ) ;
-      }
+      fmt::print( "hey uh you never set a file to log broh\n" ) ;
+      otf = true ;
+      return ;
    }
+   else if ( is_file_set )
+   {
+      /* get time */
+      time_t t = time(NULL) ;
+      struct tm *info = localtime(&t) ;
+      char buf[16] ;
+      buf[strftime(buf, sizeof(buf), "%H:%M:%S", info)] = '\0' ;
 
-   void INFO  ( const char *str ) { LOG_LOG( LOG_INFO,  str ) ; }
-   void DEBUG ( const char *str ) { LOG_LOG( LOG_DEBUG, str ) ; }
-   void WARN  ( const char *str ) { LOG_LOG( LOG_WARN,  str ) ; }
-   void ERROR ( const char *str ) { LOG_LOG( LOG_ERROR, str ) ; }
-   void FATAL ( const char *str ) { LOG_LOG( LOG_FATAL, str ) ; }
+      /* print time -> log level -> message */
+      fmt::print( "{} ", buf ) ;
+#ifdef USE_LINE_NO
+      fmt::print("{}:{}: ", file, line);
+#endif
+      fmt::print( fmt::fg(level_colors[log_level]) | fmt::emphasis::bold, "{} ", level_names[log_level] ) ;
+      fmt::vprint( str, args ) ;
 
-} // end namespace LOG
+      /* write the same stuff to file */
+      fmt::print( log_file, "{} ", buf ) ;
+      fmt::print( log_file, "{} ", level_names[log_level] ) ;
+      fmt::vprint( log_file, str, args ) ;
+   }
+} // end vlog()
